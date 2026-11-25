@@ -287,14 +287,17 @@ function select(n){
   });
 
   const op = OPS[n - 1];
-  const moved = OPS.slice(0, n - 1).filter(function(o){ return o.len >= 1024; }).length;
-  const status = OPS.slice(0, n - 1).filter(function(o){ return o.len < 1024; }).length;
+  const done = OPS.slice(0, n - 1);
+  const moved = done.filter(function(o){ return o.kind === 'write' && o.len >= 1024; }).length;
+  const status = done.filter(function(o){ return o.kind === 'write' && o.len < 1024; }).length;
+  const erased = done.filter(function(o){ return o.kind === 'erase'; }).length;
 
   document.getElementById('r-step').textContent = '第 ' + n + ' 步 / 共 ' + OPS.length + ' 步';
   document.getElementById('r-op').textContent =
     (op.kind === 'erase' ? '擦除 ' : '写入 ') + op.len + ' B → ' + areaName(op) + ' @0x' + op.off;
   document.getElementById('r-done').textContent =
-    (n - 1) + ' 步完成：' + moved + ' 次数据搬运，' + status + ' 次状态/标记写入';
+    n === 1 ? '尚未开始' :
+    (n - 1) + ' 步完成：' + moved + ' 次数据搬运，' + status + ' 次状态写入，' + erased + ' 次擦除';
   document.getElementById('r-after').textContent =
     n === 1 ? 'Flash 还没被动过，从头开始' : '读回 swap status，从第 ' + n + ' 步继续';
   document.getElementById('r-verdict').textContent =
