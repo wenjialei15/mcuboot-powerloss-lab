@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCUboot 掉电恢复实验台 · 304 个断电点</title>
+<style>
+  :root{
+    --ink:#1c1f23; --muted:#5f6672; --line:#e4e2dc; --bg:#fcfcfa;
+    --card:#ffffff; --accent:#0f6e56; --slot0:#185fa5; --slot1:#a86a00; --scratch:#787d87;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.7;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:0 28px}
+  code,.mono{font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace}
+  header{padding:72px 0 40px;border-bottom:1px solid var(--line)}
+  .kicker{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+  h1{font-size:38px;line-height:1.25;font-weight:600;margin:0 0 18px;letter-spacing:-.01em}
+  .lede{font-size:17px;color:var(--muted);max-width:640px;margin:0 0 26px}
+  .links{display:flex;gap:18px;flex-wrap:wrap;font-size:14px}
+  .links a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(15,110,86,.3)}
+  .links a:hover{border-color:var(--accent)}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+    border:1px solid var(--line);margin:40px 0 0}
+  .stat{background:var(--card);padding:20px 18px}
+  .stat b{display:block;font-size:30px;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+  .stat span{font-size:12.5px;color:var(--muted)}
+  section{padding:56px 0;border-bottom:1px solid var(--line)}
+  h2{font-size:20px;font-weight:600;margin:0 0 8px;letter-spacing:-.005em}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 26px}
+  p{margin:0 0 14px;font-size:15px}
+  .lead{font-size:16px}
+  .stack{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);background:var(--card)}
+  .layer{display:flex;align-items:baseline;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line)}
+  .layer:last-child{border-bottom:0}
+  .layer .tag{font-size:11px;letter-spacing:.06em;color:var(--muted);min-width:74px;text-transform:uppercase}
+  .layer .name{font-size:14px;font-weight:600;min-width:150px}
+  .layer .desc{font-size:13.5px;color:var(--muted)}
+  .layer.own{background:#f6faf8}
+  .layer.own .name{color:var(--accent)}
+  .note{font-size:13px;color:var(--muted);margin-top:14px}
+  table{width:100%;border-collapse:collapse;font-size:14px;background:var(--card);border:1px solid var(--line)}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line)}
+  th{font-size:12px;letter-spacing:.04em;color:var(--muted);font-weight:500;text-transform:uppercase}
+  tr:last-child td{border-bottom:0}
+  td.num{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
+  .ok{color:var(--accent);font-weight:600}
+  .timeline{border:1px solid var(--line);background:var(--card);padding:22px}
+  .strip{display:grid;grid-template-columns:repeat(66,1fr);gap:2px;margin-bottom:6px}
+  .seg{height:34px;border-radius:2px;cursor:pointer;opacity:.42;transition:opacity .12s,transform .12s;position:relative}
+  .seg:hover{opacity:.85}
+  .seg.done{opacity:1}
+  .seg.cut{outline:2px solid var(--ink);outline-offset:1px;opacity:1}
+  .seg.erase{background:var(--scratch)}
+  .seg.slot0{background:var(--slot0)}
+  .seg.slot1{background:var(--slot1)}
+  .seg.scratch{background:var(--scratch)}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:14px 0 18px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  .readout{border-top:1px solid var(--line);padding-top:16px;display:grid;
+    grid-template-columns:190px 1fr;gap:8px 22px;font-size:14px}
+  .readout dt{color:var(--muted);font-size:13px}
+  .readout dd{margin:0;font-family:ui-monospace,Consolas,monospace;font-size:13.5px}
+  .verdict{grid-column:1 / -1;background:#f2f8f5;border:1px solid #cfe6dd;padding:12px 14px;
+    font-family:inherit;font-size:13.5px;color:#14493c;margin-top:6px}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:34px}
+  .rule{border-left:2px solid var(--accent);padding-left:16px;color:var(--muted);font-size:14px}
+  pre{background:#f7f6f2;border:1px solid var(--line);padding:14px 16px;overflow-x:auto;
+    font-size:12.5px;line-height:1.75;margin:0 0 14px;font-family:ui-monospace,Consolas,monospace}
+  ul{margin:0 0 14px;padding-left:20px}
+  li{margin-bottom:8px;font-size:14.5px}
+  footer{padding:34px 0 56px;font-size:13px;color:var(--muted)}
+  footer a{color:var(--muted)}
+  @media (max-width:720px){
+    h1{font-size:28px}
+    .stats{grid-template-columns:1fr 1fr}
+    .split{grid-template-columns:1fr;gap:22px}
+    .strip{grid-template-columns:repeat(33,1fr)}
+    .readout{grid-template-columns:1fr}
+    .layer{flex-wrap:wrap;gap:4px 12px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="kicker">MCUboot · power-loss lab</div>
+    <h1>在升级的每一步之前拔掉电源，<br>它会变砖吗？</h1>
+    <p class="lede">
+      把 MCUboot 的真实 bootutil 代码编译到电脑上，在一次 OTA 的每一次 Flash 擦除和写入之前切断电源，
+      然后重新上电。304 个断电点，逐个验证。
+    </p>
+    <div class="links">
+      <a href="https://github.com/wenjialei15/mcuboot-powerloss-lab">GitHub 仓库</a>
+      <a href="https://github.com/wenjialei15/mcuboot-powerloss-lab/blob/main/docs/results.txt">完整输出</a>
+      <a href="https://github.com/mcu-tools/mcuboot">上游 MCUboot</a>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>304</b><span>个断电点</span></div>
+      <div class="stat"><b>0</b><span>次变砖</span></div>
+      <div class="stat"><b>66–87</b><span>次操作 / 次升级</span></div>
+      <div class="stat"><b>2</b><span>种扇区结构</span></div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>为什么挑这件事做</h2>
+    <p class="sub">OTA 最危险的不是下载，是写入。</p>
+    <div class="split">
+      <div>
+        <p class="lead">下载失败可以重来，写到一半掉电，设备可能再也起不来。</p>
+        <p>工业现场、电池供电的传感器、装在杆子上的设备——没有谁会等你"升级完成再断电"。A/B 双槽存在的理由，就是让这个瞬间可恢复。</p>
+      </div>
+      <div>
+        <p>MCUboot 是这个问题的标准答案之一。但它自带的模拟器绑定 Rust + Cargo，很多嵌入式同学的机器上只有 Keil 和 GCC。</p>
+        <p>所以这里只做一件事：补上那 150 行 C，让真实的上游代码在任何有 C 编译器的机器上跑起来，然后一个点一个点地拔电。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>怎么做的</h2>
+    <p class="sub">没有复刻模型，跑的就是上游源码。</p>
+    <div class="stack">
+      <div class="layer">
+        <span class="tag">driver</span>
+        <span class="name">src/main.c</span>
+        <span class="desc">构造镜像、扫描断电点、断言结果</span>
+      </div>
+      <div class="layer">
+        <span class="tag">upstream</span>
+        <span class="name">boot/bootutil/*.c</span>
+        <span class="desc">MCUboot 的换槽与状态机，一行未改</span>
+      </div>
+      <div class="layer">
+        <span class="tag">upstream</span>
+        <span class="name">sim/…/run.c</span>
+        <span class="desc">上游模拟器自带的 C 胶水层，setjmp/longjmp 计数</span>
+      </div>
+      <div class="layer own">
+        <span class="tag">this repo</span>
+        <span class="name">port/sim_port.c</span>
+        <span class="desc">256 KB RAM Flash、扇区表、读写擦除，约 150 行</span>
+      </div>
+      <div class="layer">
+        <span class="tag">hardware</span>
+        <span class="name">0 块开发板</span>
+        <span class="desc">一个 C 编译器即可</span>
+      </div>
+    </div>
+    <p class="note">断电语义与上游一致：计数归零的那次擦写<strong>不会执行</strong>，等价于"在第 N 次操作之前掉电"。</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>结果</h2>
+    <p class="sub">每个断电点检查三件事：能启动、槽内容正确、再启动不再写 Flash。</p>
+    <table>
+      <thead>
+        <tr><th>场景</th><th>扇区</th><th>操作数</th><th>断电点</th><th>失败</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>永久升级 1.0.0 → 1.1.0</td><td class="num">4 KB</td><td class="num">66</td><td class="num">66</td><td class="ok">0</td></tr>
+        <tr><td>测试模式回滚 1.1.0 → 1.0.0</td><td class="num">4 KB</td><td class="num">65</td><td class="num">65</td><td class="ok">0</td></tr>
+        <tr><td>永久升级 1.0.0 → 1.1.0</td><td class="num">1 KB</td><td class="num">87</td><td class="num">87</td><td class="ok">0</td></tr>
+        <tr><td>测试模式回滚 1.1.0 → 1.0.0</td><td class="num">1 KB</td><td class="num">86</td><td class="num">86</td><td class="ok">0</td></tr>
+        <tr><td>次级槽镜像被篡改</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="ok">正确拒绝</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>一次升级的 66 步</h2>
+    <p class="sub">点任意一格，看看在那一步之前断电会发生什么。数据来自 4 KB 扇区的一次真实运行。</p>
+    <div class="timeline">
+      <div class="strip" id="strip"></div>
+      <div class="legend">
+        <span><i style="background:#787d87"></i>擦除 / scratch</span>
+        <span><i style="background:#185fa5"></i>主槽 slot0</span>
+        <span><i style="background:#a86a00"></i>备份槽 slot1</span>
+      </div>
+      <dl class="readout" id="readout">
+        <dt>第几步之前</dt><dd id="r-step">—</dd>
+        <dt>操作</dt><dd id="r-op">—</dd>
+        <dt>已完成</dt><dd id="r-done">—</dd>
+        <dt>重启后</dt><dd id="r-after">—</dd>
+        <div class="verdict" id="r-verdict">选一格看看。</div>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>为什么每个点都能恢复</h2>
+    <p class="sub">不是因为运气好，是因为顺序被设计过。</p>
+    <div class="split">
+      <div>
+        <p>看操作序列会发现一个固定节奏：每搬完一个扇区，先往 swap status 写 8 字节进度，再动下一块数据。</p>
+<pre>erase scratch
+copy 4 KB  →  scratch
+write status (8 B)      ← 先记账
+erase slot1
+copy 4 KB  →  slot1
+write status (8 B)</pre>
+      </div>
+      <div>
+        <p>所以任意时刻掉电，Flash 上留下的都是一个自洽的中间态：要么"第 k 块搬完了"，要么"第 k 块还没开始"。</p>
+        <p>重启后读回 status，从 k 继续。这个状态是幂等的——重复执行同一个 k 不会破坏数据，所以重试安全。</p>
+        <p class="rule">66 次操作里，36 次在搬数据，16 次写 8 字节状态，2 次写 16 字节标记，12 次是擦除。真正让设备活下来的，是那 18 次小写入。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>边界</h2>
+    <p class="sub">这是验证实验台，不是"MCUboot 已通过全部认证"。</p>
+    <div class="split">
+      <div>
+        <ul>
+          <li>只测未签名镜像（校验 SHA256），没有覆盖 ECDSA 签名路径。</li>
+          <li>只覆盖 swap-scratch，没有覆盖 swap-move / overwrite-only / direct-XIP。</li>
+        </ul>
+      </div>
+      <div>
+        <ul>
+          <li>RAM 模型不模拟 NOR 的位翻转、坏块、写放大和真实擦除时间。</li>
+          <li>不能替代真机的高低温、掉电时序与老化测试。</li>
+        </ul>
+      </div>
+    </div>
+    <p class="note">这些边界写在 README 里，也是下一步要补的：签名镜像、swap-move、以及真板上的实测。</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>Apache-2.0 · 上游 MCUboot 代码版权归其作者所有 ·
+      <a href="https://github.com/wenjialei15/mcuboot-powerloss-lab">github.com/wenjialei15/mcuboot-powerloss-lab</a></p>
+  </div>
+</footer>
+
+<script>
+const OPS = [{"seq":1,"kind":"erase","area":"scratch","off":"0x28000","len":4096},{"seq":2,"kind":"write","area":"scratch","off":"0x28fd8","len":8},{"seq":3,"kind":"write","area":"scratch","off":"0x28fe8","len":8},{"seq":4,"kind":"write","area":"scratch","off":"0x28fd0","len":8},{"seq":5,"kind":"write","area":"scratch","off":"0x28ff0","len":16},{"seq":6,"kind":"erase","area":"slot0","off":"0x17000","len":4096},{"seq":7,"kind":"write","area":"slot0","off":"0x17fd8","len":8},{"seq":8,"kind":"write","area":"slot0","off":"0x17fe8","len":8},{"seq":9,"kind":"write","area":"slot0","off":"0x17fd0","len":8},{"seq":10,"kind":"write","area":"slot0","off":"0x17ff0","len":16},{"seq":11,"kind":"erase","area":"scratch","off":"0x28000","len":4096},{"seq":12,"kind":"write","area":"scratch","off":"0x28000","len":1024},{"seq":13,"kind":"write","area":"scratch","off":"0x28400","len":1024},{"seq":14,"kind":"write","area":"scratch","off":"0x28800","len":1024},{"seq":15,"kind":"write","area":"scratch","off":"0x28c00","len":1024},{"seq":16,"kind":"write","area":"slot0","off":"0x173d0","len":8},{"seq":17,"kind":"erase","area":"slot1","off":"0x27000","len":4096},{"seq":18,"kind":"erase","area":"slot1","off":"0x1a000","len":4096},{"seq":19,"kind":"write","area":"slot1","off":"0x1a000","len":1024},{"seq":20,"kind":"write","area":"slot1","off":"0x1a400","len":1024},{"seq":21,"kind":"write","area":"slot1","off":"0x1a800","len":1024},{"seq":22,"kind":"write","area":"slot1","off":"0x1ac00","len":1024},{"seq":23,"kind":"write","area":"slot0","off":"0x173d8","len":8},{"seq":24,"kind":"erase","area":"slot0","off":"0x0a000","len":4096},{"seq":25,"kind":"write","area":"slot0","off":"0x0a000","len":1024},{"seq":26,"kind":"write","area":"slot0","off":"0x0a400","len":1024},{"seq":27,"kind":"write","area":"slot0","off":"0x0a800","len":1024},{"seq":28,"kind":"write","area":"slot0","off":"0x0ac00","len":1024},{"seq":29,"kind":"write","area":"slot0","off":"0x173e0","len":8},{"seq":30,"kind":"erase","area":"scratch","off":"0x28000","len":4096},{"seq":31,"kind":"write","area":"scratch","off":"0x28000","len":1024},{"seq":32,"kind":"write","area":"scratch","off":"0x28400","len":1024},{"seq":33,"kind":"write","area":"scratch","off":"0x28800","len":1024},{"seq":34,"kind":"write","area":"scratch","off":"0x28c00","len":1024},{"seq":35,"kind":"write","area":"slot0","off":"0x173e8","len":8},{"seq":36,"kind":"erase","area":"slot1","off":"0x19000","len":4096},{"seq":37,"kind":"write","area":"slot1","off":"0x19000","len":1024},{"seq":38,"kind":"write","area":"slot1","off":"0x19400","len":1024},{"seq":39,"kind":"write","area":"slot1","off":"0x19800","len":1024},{"seq":40,"kind":"write","area":"slot1","off":"0x19c00","len":1024},{"seq":41,"kind":"write","area":"slot0","off":"0x173f0","len":8},{"seq":42,"kind":"erase","area":"slot0","off":"0x09000","len":4096},{"seq":43,"kind":"write","area":"slot0","off":"0x09000","len":1024},{"seq":44,"kind":"write","area":"slot0","off":"0x09400","len":1024},{"seq":45,"kind":"write","area":"slot0","off":"0x09800","len":1024},{"seq":46,"kind":"write","area":"slot0","off":"0x09c00","len":1024},{"seq":47,"kind":"write","area":"slot0","off":"0x173f8","len":8},{"seq":48,"kind":"erase","area":"scratch","off":"0x28000","len":4096},{"seq":49,"kind":"write","area":"scratch","off":"0x28000","len":1024},{"seq":50,"kind":"write","area":"scratch","off":"0x28400","len":1024},{"seq":51,"kind":"write","area":"scratch","off":"0x28800","len":1024},{"seq":52,"kind":"write","area":"scratch","off":"0x28c00","len":1024},{"seq":53,"kind":"write","area":"slot0","off":"0x17400","len":8},{"seq":54,"kind":"erase","area":"slot1","off":"0x18000","len":4096},{"seq":55,"kind":"write","area":"slot1","off":"0x18000","len":1024},{"seq":56,"kind":"write","area":"slot1","off":"0x18400","len":1024},{"seq":57,"kind":"write","area":"slot1","off":"0x18800","len":1024},{"seq":58,"kind":"write","area":"slot1","off":"0x18c00","len":1024},{"seq":59,"kind":"write","area":"slot0","off":"0x17408","len":8},{"seq":60,"kind":"erase","area":"slot0","off":"0x08000","len":4096},{"seq":61,"kind":"write","area":"slot0","off":"0x08000","len":1024},{"seq":62,"kind":"write","area":"slot0","off":"0x08400","len":1024},{"seq":63,"kind":"write","area":"slot0","off":"0x08800","len":1024},{"seq":64,"kind":"write","area":"slot0","off":"0x08c00","len":1024},{"seq":65,"kind":"write","area":"slot0","off":"0x17410","len":8},{"seq":66,"kind":"write","area":"slot0","off":"0x17fe0","len":8}];
+
+const strip = document.getElementById('strip');
+let selected = 0;
+
+function areaClass(op){
+  if (op.kind === 'erase' && op.area === 'scratch') return 'erase';
+  return op.area;
+}
+function areaName(op){
+  if (op.area === 'slot0') return '主槽 slot0';
+  if (op.area === 'slot1') return '备份槽 slot1';
+  if (op.area === 'scratch') return 'scratch';
+  return op.area;
+}
+
+OPS.forEach(function(op, i){
+  const d = document.createElement('div');
+  d.className = 'seg ' + areaClass(op);
+  d.dataset.i = i + 1;
+  d.title = '第 ' + op.seq + ' 步 · ' + (op.kind === 'erase' ? '擦除' : '写入') + ' ' + op.len + ' B @0x' + op.off;
+  d.addEventListener('click', function(){ select(op.seq); });
+  strip.appendChild(d);
+});
+
+function select(n){
+  selected = n;
+  const segs = strip.querySelectorAll('.seg');
+  segs.forEach(function(el, idx){
+    el.classList.toggle('done', idx + 1 < n);
+    el.classList.toggle('cut', idx + 1 === n);
+  });
+
+  const op = OPS[n - 1];
+  const moved = OPS.slice(0, n - 1).filter(function(o){ return o.len >= 1024; }).length;
+  const status = OPS.slice(0, n - 1).filter(function(o){ return o.len < 1024; }).length;
+
+  document.getElementById('r-step').textContent = '第 ' + n + ' 步 / 共 ' + OPS.length + ' 步';
+  document.getElementById('r-op').textContent =
+    (op.kind === 'erase' ? '擦除 ' : '写入 ') + op.len + ' B → ' + areaName(op) + ' @0x' + op.off;
+  document.getElementById('r-done').textContent =
+    (n - 1) + ' 步完成：' + moved + ' 次数据搬运，' + status + ' 次状态/标记写入';
+  document.getElementById('r-after').textContent =
+    n === 1 ? 'Flash 还没被动过，从头开始' : '读回 swap status，从第 ' + n + ' 步继续';
+  document.getElementById('r-verdict').textContent =
+    '重启结果：' + (n === 1 ? '从头完成升级' : '继续完成升级') + '，最终启动 1.1.0；再启动一次不会写 Flash。' +
+    (n === 1 ? '' : '（剩余 ' + (OPS.length - n + 1) + ' 步）');
+}
+
+select(1);
+</script>
+</body>
+</html>

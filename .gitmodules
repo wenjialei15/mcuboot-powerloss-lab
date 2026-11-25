@@ -1,0 +1,3 @@
+[submodule "third_party/mcuboot"]
+	path = third_party/mcuboot
+	url = https://github.com/mcu-tools/mcuboot.git

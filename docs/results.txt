@@ -1,0 +1,27 @@
+== permanent upgrade 1.0.0 -> 1.1.0 (sector 4096 B) ==
+clean run: 66 flash ops, boots 1.1
+
+permanent upgrade 1.0.0 -> 1.1.0 (sector 4096 B): 66 cut points, 0 failures
+
+== test revert 1.1.0 -> 1.0.0 (sector 4096 B) ==
+clean run: 65 flash ops, boots 1.0
+
+test revert 1.1.0 -> 1.0.0 (sector 4096 B): 65 cut points, 0 failures
+
+== corrupted secondary image ==
+booted 1.0 (expected 1.0), rejection works
+
+== permanent upgrade 1.0.0 -> 1.1.0 (sector 1024 B) ==
+clean run: 87 flash ops, boots 1.1
+
+permanent upgrade 1.0.0 -> 1.1.0 (sector 1024 B): 87 cut points, 0 failures
+
+== test revert 1.1.0 -> 1.0.0 (sector 1024 B) ==
+clean run: 86 flash ops, boots 1.0
+
+test revert 1.1.0 -> 1.0.0 (sector 1024 B): 86 cut points, 0 failures
+
+== corrupted secondary image ==
+booted 1.0 (expected 1.0), rejection works
+
+TOTAL: 0 failure(s)
